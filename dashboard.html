@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - EducMark</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+    
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        /* Variables CSS - Mantenemos la misma paleta de la landing */
+        :root {
+            --background: #0f0f1a;
+            --foreground: #e2e2f5;
+            --primary: #a48fff;
+            --primary-foreground: #0f0f1a;
+            --secondary: #2d2b55;
+            --secondary-foreground: #c4c2ff;
+            --accent: #303060;
+            --accent-foreground: #e2e2f5;
+            --card: #1a1a2e;
+            --card-foreground: #e2e2f5;
+            --muted: #222244;
+            --muted-foreground: #a0a0c0;
+            --border: #303052;
+            --input: #303052;
+            --ring: #a48fff;
+            --font-heading: 'Space Grotesk', sans-serif;
+            --font-body: 'Inter', sans-serif;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background-color: var(--background);
+            color: var(--foreground);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Header del Dashboard */
+        .dashboard-header {
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(20px);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-family: var(--font-heading);
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-decoration: none;
+            background: linear-gradient(135deg, var(--primary), var(--secondary-foreground));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--primary-foreground);
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: var(--primary-foreground);
+        }
+
+        .btn-primary:hover {
+            background: var(--secondary-foreground);
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--foreground);
+            border: 1px solid var(--border);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-danger {
+            background: var(--error);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        /* Layout del Dashboard */
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 2rem;
+            padding: 2rem 0;
+            min-height: calc(100vh - 80px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--card);
+            border-radius: 15px;
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            height: fit-content;
+            position: sticky;
+            top: 100px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            color: var(--muted-foreground);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            background: var(--accent);
+            color: var(--foreground);
+        }
+
+        .nav-item.active {
+            background: var(--primary);
+            color: var(--primary-foreground);
+        }
+
+        /* Main Content */
+        .main-content {
+            background: var(--card);
+            border-radius: 15px;
+            border: 1px solid var(--border);
+            padding: 2rem;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .section-title {
+            font-family: var(--font-heading);
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--foreground);
+        }
+
+        .section-subtitle {
+            color: var(--muted-foreground);
+            margin-bottom: 2rem;
+        }
+
+        /* Cards de Estadísticas */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(164, 143, 255, 0.1);
+        }
+
+        .stat-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            color: var(--muted-foreground);
+            font-size: 0.9rem;
+        }
+
+        /* Plan Info */
+        .plan-info {
+            background: linear-gradient(135deg, var(--primary), var(--secondary-foreground));
+            border-radius: 15px;
+            padding: 2rem;
+            color: var(--primary-foreground);
+            margin-bottom: 2rem;
+        }
+
+        .plan-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .plan-name {
+            font-family: var(--font-heading);
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .plan-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .usage-bar {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            height: 8px;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+
+        .usage-progress {
+            background: white;
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+
+        /* Formulario de Generación */
+        .generation-form {
+            background: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: var(--foreground);
+        }
+
+        .form-control {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--input);
+            color: var(--foreground);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--ring);
+            box-shadow: 0 0 0 3px rgba(164, 143, 255, 0.1);
+        }
+
+        textarea.form-control {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        /* Lista de Clases Generadas */
+        .classes-list {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .class-card {
+            background: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .class-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(164, 143, 255, 0.1);
+        }
+
+        .class-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .class-info h3 {
+            font-family: var(--font-heading);
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--foreground);
+        }
+
+        .class-meta {
+            display: flex;
+            gap: 1rem;
+            color: var(--muted-foreground);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .class-objective {
+            color: var(--muted-foreground);
+            font-style: italic;
+        }
+
+        .class-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .btn-small {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        /* Modal para vista de clase */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        .modal-content {
+            background: var(--card);
+            margin: 2% auto;
+            padding: 0;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            position: relative;
+        }
+
+        .modal-header {
+            padding: 2rem 2rem 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-family: var(--font-heading);
+            color: var(--foreground);
+        }
+
+        .close {
+            color: var(--muted-foreground);
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover {
+            color: var(--foreground);
+        }
+
+        .modal-body {
+            padding: 2rem;
+        }
+
+        /* Configuración de perfil */
+        .profile-form {
+            max-width: 500px;
+        }
+
+        .profile-form .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        /* Loading y estados */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            color: var(--muted-foreground);
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-top: 2px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--muted-foreground);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Notificaciones */
+        .notification {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 1001;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            border-left: 4px solid var(--success);
+        }
+
+        .notification.error {
+            border-left: 4px solid var(--error);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 1rem;
+            }
+
+            .dashboard-layout {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .sidebar {
+                position: static;
+                order: 2;
+            }
+
+            .main-content {
+                order: 1;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
+            }
+
+            .user-menu {
+                justify-content: space-between;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .class-header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .class-actions {
+                align-self: flex-start;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 5% auto;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .class-meta {
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header del Dashboard -->
+    <header class="dashboard-header">
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">EducMark</a>
+                <div class="user-menu">
+                    <span id="userEmail" class="user-email"></span>
+                    <div class="user-avatar" id="userAvatar">-</div>
+                    <button class="btn btn-outline" onclick="logout()">Cerrar Sesión</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Layout Principal -->
+    <div class="container">
+        <div class="dashboard-layout">
+            <!-- Sidebar -->
+            <nav class="sidebar">
+                <a href="#" class="nav-item active" data-section="overview">
+                    <span>📊</span>
+                    Resumen
+                </a>
+                <a href="#" class="nav-item" data-section="generator">
+                    <span>✨</span>
+                    Generar Clase
+                </a>
+                <a href="#" class="nav-item" data-section="history">
+                    <span>📚</span>
+                    Mis Clases
+                </a>
+                <a href="#" class="nav-item" data-section="subscription">
+                    <span>💳</span>
+                    Suscripción
+                </a>
+                <a href="#" class="nav-item" data-section="profile">
+                    <span>👤</span>
+                    Perfil
+                </a>
+            </nav>
+
+            <!-- Contenido Principal -->
+            <main class="main-content">
+                <!-- Sección: Resumen -->
+                <section id="overview" class="section active">
+                    <h1 class="section-title">¡Hola! Bienvenido a tu Dashboard</h1>
+                    <p class="section-subtitle">Aquí puedes ver el resumen de tu actividad y generar nuevas clases.</p>
+
+                    <!-- Información del Plan -->
+                    <div class="plan-info">
+                        <div class="plan-header">
+                            <div>
+                                <div class="plan-name" id="planName">Plan Araucaria</div>
+                                <div id="planDescription">35 clases por mes</div>
+                            </div>
+                            <div class="plan-badge" id="planStatus">Activo</div>
+                        </div>
+                        <div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span>Clases utilizadas este mes</span>
+                                <span id="usageText">8 / 35</span>
+                            </div>
+                            <div class="usage-bar">
+                                <div class="usage-progress" id="usageProgress" style="width: 23%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Estadísticas -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">📝</div>
+                            <div class="stat-value" id="totalClasses">8</div>
+                            <div class="stat-label">Clases generadas</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">⚡</div>
+                            <div class="stat-value" id="remainingClasses">27</div>
+                            <div class="stat-label">Clases restantes</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📊</div>
+                            <div class="stat-value" id="favoriteSubject">Lenguaje</div>
+                            <div class="stat-label">Asignatura favorita</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🏆</div>
+                            <div class="stat-value" id="daysSaved">24</div>
+                            <div class="stat-label">Horas ahorradas</div>
+                        </div>
+                    </div>
+
+                    <!-- Acciones Rápidas -->
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="showSection('generator')">
+                            ✨ Generar Nueva Clase
+                        </button>
+                        <button class="btn btn-outline" onclick="showSection('history')">
+                            📚 Ver Mis Clases
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Sección: Generador de Clases -->
+                <section id="generator" class="section">
+                    <h1 class="section-title">Generar Nueva Clase</h1>
+                    <p class="section-subtitle">Completa los datos y obtén tu planificación en segundos.</p>
+
+                    <form class="generation-form" id="classGenerationForm">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="asignatura">Asignatura *</label>
+                                <select id="asignatura" class="form-control" required>
+                                    <option value="">Selecciona una asignatura</option>
+                                    <option value="lenguaje">Lenguaje y Comunicación</option>
+                                    <option value="matematicas">Matemáticas</option>
+                                    <option value="historia">Historia, Geografía y Ciencias Sociales</option>
+                                    <option value="ciencias">Ciencias Naturales</option>
+                                    <option value="ingles">Inglés</option>
+                                    <option value="artes">Artes Visuales</option>
+                                    <option value="musica">Música</option>
+                                    <option value="educacion-fisica">Educación Física</option>
+                                    <option value="tecnologia">Tecnología</option>
+                                    <option value="orientacion">Orientación</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="curso">Curso *</label>
+                                <select id="curso" class="form-control" required>
+                                    <option value="">Selecciona un curso</option>
+                                    <option value="1-basico">1° Básico</option>
+                                    <option value="2-basico">2° Básico</option>
+                                    <option value="3-basico">3° Básico</option>
+                                    <option value="4-basico">4° Básico</option>
+                                    <option value="5-basico">5° Básico</option>
+                                    <option value="6-basico">6° Básico</option>
+                                    <option value="7-basico">7° Básico</option>
+                                    <option value="8-basico">8° Básico</option>
+                                    <option value="1-medio">1° Medio</option>
+                                    <option value="2-medio">2° Medio</option>
+                                    <option value="3-medio">3° Medio</option>
+                                    <option value="4-medio">4° Medio</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="duracion">Duración</label>
+                                <select id="duracion" class="form-control">
+                                    <option value="45">45 minutos</option>
+                                    <option value="90">90 minutos (bloque)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="nee">Necesidades Educativas Especiales</label>
+                                <select id="nee" class="form-control">
+                                    <option value="">Sin NEE específicas</option>
+                                    <option value="dificultades-aprendizaje">Dificultades específicas de aprendizaje</option>
+                                    <option value="deficit-atencion">Déficit atencional (TDAH)</option>
+                                    <option value="discapacidad-intelectual">Discapacidad intelectual</option>
+                                    <option value="trastorno-espectro-autista">Trastorno del espectro autista (TEA)</option>
+                                    <option value="discapacidad-visual">Discapacidad visual</option>
+                                    <option value="discapacidad-auditiva">Discapacidad auditiva</option>
+                                    <option value="discapacidad-motora">Discapacidad motora</option>
+                                    <option value="trastorno-lenguaje">Trastorno específico del lenguaje (TEL)</option>
+                                    <option value="altas-capacidades">Altas capacidades intelectuales</option>
+                                    <option value="multiples">Múltiples NEE</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="objetivo">Objetivo de la clase *</label>
+                            <textarea id="objetivo" class="form-control" placeholder="Describe brevemente qué quieres que aprendan tus estudiantes en esta clase" required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="contexto">Contexto adicional (opcional)</label>
+                            <textarea id="contexto" class="form-control" placeholder="Información adicional sobre tus estudiantes, recursos disponibles, etc."></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" id="generateBtn">
+                            <span class="spinner" id="generateSpinner" style="display: none;"></span>
+                            ✨ Generar Clase
+                        </button>
+                    </form>
+                </section>
+
+                <!-- Sección: Historial de Clases -->
+                <section id="history" class="section">
+                    <h1 class="section-title">Mis Clases Generadas</h1>
+                    <p class="section-subtitle">Todas tus planificaciones están aquí. Puedes verlas, descargarlas o regenerarlas.</p>
+
+                    <div id="classesList" class="classes-list">
+                        <!-- Las clases se cargarán dinámicamente aquí -->
+                    </div>
+                </section>
+
+                <!-- Sección: Suscripción -->
+                <section id="subscription" class="section">
+                    <h1 class="section-title">Mi Suscripción</h1>
+                    <p class="section-subtitle">Gestiona tu plan y métodos de pago.</p>
+
+                    <div class="plan-info">
+                        <div class="plan-header">
+                            <div>
+                                <div class="plan-name">Plan Araucaria</div>
+                                <div>$21.900 / mes</div>
+                            </div>
+                            <div class="plan-badge">Activo</div>
+                        </div>
+                        <div style="margin-top: 1rem;">
+                            <p><strong>Próximo pago:</strong> 15 de Septiembre, 2025</p>
+                            <p><strong>Método de pago:</strong> **** **** **** 1234 (Visa)</p>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="upgradeToCondor()">
+                            🦅 Actualizar a Plan Cóndor
+                        </button>
+                        <button class="btn btn-outline" onclick="manageBilling()">
+                            💳 Gestionar Facturación
+                        </button>
+                        <button class="btn btn-danger" onclick="cancelSubscription()">
+                            ❌ Cancelar Suscripción
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Sección: Perfil -->
+                <section id="profile" class="section">
+                    <h1 class="section-title">Mi Perfil</h1>
+                    <p class="section-subtitle">Actualiza tu información personal.</p>
+
+                    <form class="profile-form" id="profileForm">
+                        <div class="form-group">
+                            <label for="profileName">Nombre completo</label>
+                            <input type="text" id="profileName" class="form-control" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="profileEmail">Email</label>
+                            <input type="email" id="profileEmail" class="form-control" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="profilePassword">Nueva contraseña (opcional)</label>
+                            <input type="password" id="profilePassword" class="form-control" placeholder="Dejar en blanco para mantener la actual">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            💾 Guardar Cambios
+                        </button>
+                    </form>
